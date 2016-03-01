@@ -24,6 +24,8 @@
 #include "FFdecsa/FFdecsa.h"
 #endif
 
+#include "statdebug.h"
+
 DeCSA *decsa = NULL;
 
 bool CheckNull(const unsigned char *data, int len)
@@ -172,6 +174,8 @@ unsigned char ts_packet_get_payload_offset(unsigned char *ts_packet)
   }
 }
 
+static cStatData gDecryptStat("Decrypt block", 1000);
+
 bool DeCSA::Decrypt(uint8_t adapter_index, unsigned char *data, int len, bool force)
 {
   cMutexLock lock(&mutex);
@@ -282,6 +286,8 @@ bool DeCSA::Decrypt(uint8_t adapter_index, unsigned char *data, int len, bool fo
       // nothing, we don't create holes for unencrypted packets
     }
   }
+  gDecryptStat.Update(ccs);
+
   if (algo[currIdx] == CA_ALGO_DES)
     return true;
 #ifndef LIBDVBCSA

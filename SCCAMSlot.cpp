@@ -31,6 +31,8 @@
 #include "SCCAMSlot.h"
 #include "Log.h"
 
+#include "statdebug.h"
+
 // from vdr's ci.c
 #define AOT_CA_INFO_ENQ             0x9F8030
 #define AOT_CA_INFO                 0x9F8031
@@ -327,6 +329,9 @@ DeCSAFillControl::DeCSAFillControl(int MaxWaterMark, int Timeout, int DataInterv
   Reset();
 }
 
+static cStatData gMarkStat("WaterMark", 32, 32);
+static cStatData gDeltaStat("Delta", 32, 32);
+
 bool DeCSAFillControl::CanProcess(const uchar *Data, int Count)
 {
   switch (state)
@@ -346,6 +351,7 @@ bool DeCSAFillControl::CanProcess(const uchar *Data, int Count)
       {
         // we are probably stuck at the end of the ringbuffer
         state = WRAP;
+        ERRORLOG("========== WRAP detected ==========");
         return true;
       }
       // go on sleeping until timeout expires
@@ -360,6 +366,9 @@ bool DeCSAFillControl::CanProcess(const uchar *Data, int Count)
       if (lowWaterMark < minWaterMark)
         lowWaterMark = minWaterMark;
       lowWaterMark = Filter(lowWaterMark);
+
+      gMarkStat.Update(lowWaterMark);
+      gDeltaStat.Update(Count - lastCount);
       state = READY;
       return false;
     case WRAP:
@@ -371,6 +380,7 @@ bool DeCSAFillControl::CanProcess(const uchar *Data, int Count)
       {
         // keep lowWaterMark
         state = READY;
+        ERRORLOG("========== WRAPPED !!!! ========");
         return false;
       }
       lastData = Data;
@@ -398,5 +408,9 @@ void DeCSAFillControl::Reset(void)
   state = READY;
   lowWaterMark = maxWaterMark;
   fltTap1 = fltTap2 = -1;
+
+  gDeltaStat.Reset();
+  gMarkStat.Reset();
+  ERRORLOG("========== Reset() ==========");
 }
 
